@@ -59,8 +59,8 @@ typedef enum {
 typedef struct {
     uint8_t  captured;
     uint8_t  castling;
+    uint8_t  ep;
     uint8_t  hm;
-    uint16_t fm;
 } saved_t;
 
 typedef struct {

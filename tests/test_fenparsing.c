@@ -8,7 +8,7 @@ Test(ParseFen, startingPosition)
     pos_t *pos = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     cr_assert(pos->castling == ALL_CASTLING);
     cr_assert(pos->side == WHITE);
-    cr_assert(pos->en_passant == NO_ENPASSANT);
+    cr_assert(pos->ep == NO_ENPASSANT);
     cr_assert(pos->hm == 0);
     cr_assert(pos->fm == 1);
     free(pos);
@@ -20,7 +20,7 @@ Test(ParseFen, noCastling)
     pos_t *pos = parse_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w - - 0 1");
     cr_assert(pos->castling == NO_CASTLING);
     cr_assert(pos->side == WHITE);
-    cr_assert(pos->en_passant == NO_ENPASSANT);
+    cr_assert(pos->ep == NO_ENPASSANT);
     cr_assert(pos->hm == 0);
     cr_assert(pos->fm == 1);
     free(pos);
@@ -33,7 +33,7 @@ Test(ParseFen, blackKingCastle)
     cr_assert(pos->castling & B_00);
     cr_assert((pos->castling & B_000) == 0);
     cr_assert(pos->side == WHITE);
-    cr_assert(pos->en_passant == NO_ENPASSANT);
+    cr_assert(pos->ep == NO_ENPASSANT);
     cr_assert(pos->hm == 0);
     cr_assert(pos->fm == 1);
     free(pos);
@@ -45,7 +45,7 @@ Test(ParseFen, enPassantSQ)
     pos_t *pos = parse_fen("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2");
     cr_assert(pos->castling == ALL_CASTLING);
     cr_assert(pos->side == WHITE);
-    cr_assert(pos->en_passant == d6);
+    cr_assert(pos->ep == d6);
     cr_assert(pos->hm == 0);
     cr_assert(pos->fm == 2);
     free(pos);
@@ -57,7 +57,7 @@ Test(ParseFen, endGame)
     pos_t *pos = parse_fen("8/4k3/8/3p4/3P4/8/4K3/8 w - - 32 22");
     cr_assert(pos->castling == NO_CASTLING);
     cr_assert(pos->side == WHITE);
-    cr_assert(pos->en_passant == NO_ENPASSANT);
+    cr_assert(pos->ep == NO_ENPASSANT);
     cr_assert(pos->hm == 32);
     cr_assert(pos->fm == 22);
     free(pos);

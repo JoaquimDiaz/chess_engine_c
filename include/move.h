@@ -51,5 +51,7 @@ void _pseudo_legal_queen(pos_t *pos, ml_t *ml, color_t c);
 void _all_pseudo_legal(pos_t *pos, ml_t *ml, color_t c);
 
 
-void make_move(pos_t *pos, move_t m);
+void make_move(pos_t *pos, int from, int to, int flag, color_t c);
+void unmake_move(pos_t *pos, int from, int to, color_t c);
 void quick_make(pos_t *pos, int from, int to);
+void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal);

@@ -3,4 +3,5 @@
 src/magic.c
 compile_commands.json
 build/
+tests/bin/
 

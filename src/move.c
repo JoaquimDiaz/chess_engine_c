@@ -46,7 +46,14 @@ void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, color_t c)
         // single push
         bb_t push = (c == WHITE) ? (sq_bb(sq) << 8) : (sq_bb(sq) >> 8);
         push &= ~pos->all;
-        // TODO: PROMOTIONS
+        if (push & ((c == WHITE) ? RANK_8 : RANK_1))
+        {
+            int to_sq = poplsb(&push);
+            ml->moves[ml->count++] = mencode(sq, to_sq, PROM_N);
+            ml->moves[ml->count++] = mencode(sq, to_sq, PROM_B);
+            ml->moves[ml->count++] = mencode(sq, to_sq, PROM_R);
+            ml->moves[ml->count++] = mencode(sq, to_sq, PROM_Q);
+        }
         // double push
         bb_t db_push = (c == WHITE) ? ((push << 8) & RANK_4) : ((push >> 8) & RANK_5);
         db_push &= ~pos->all;
@@ -161,25 +168,23 @@ void quick_make(pos_t *pos, int from, int to)
 {
     int flag = NO_FLAG;
     if (pos->pl[to] != NO_PIECE) flag = CAPTURE;
-    make_move(pos, mencode(from, to, flag));
+    make_move(pos, from, to, flag, pos->side);
 }
 
-void make_move(pos_t *pos, move_t m)
+void make_move(pos_t *pos, int from, int to, int flag, color_t c)
 {
-    int from = mfrom(m);
-    int to   = mto(m);
+    pos->ply_stack[pos->ply++] = (saved_t){pos->pl[to], pos->castling, pos->ep, pos->hm};
     if (piece_type(pos->pl[from]) == KING)
-        pos->ks[pos->side] = to;
+        pos->ks[c] = to;
     // bitboard
-    BB(pos, pos->side, pos->pl[from]) &= ~sq_bb(from);
-    BB(pos, pos->side, pos->pl[from]) |= sq_bb(to);
-    // occupancy
-    pos->occ[pos->side] &= ~sq_bb(from);
-    pos->occ[pos->side] |= sq_bb(to);
+    BB(pos, c, piece_type(pos->pl[from])) &= ~sq_bb(from);
+    BB(pos, c, piece_type(pos->pl[from])) |= sq_bb(to);
+    pos->occ[c] &= ~sq_bb(from);
+    pos->occ[c] |= sq_bb(to);
     pos->all &= ~sq_bb(from);
-    if (mflag(m) == CAPTURE) {
-        pos->occ[pos->side^1] &= ~sq_bb(to);
-        BB(pos, pos->side^1, pos->pl[to]) &= ~sq_bb(to);
+    if (flag == CAPTURE) {
+        pos->occ[c^1] &= ~sq_bb(to);
+        BB(pos, c^1, piece_type(pos->pl[to])) &= ~sq_bb(to);
     } else {
         pos->all |= sq_bb(to);
     }
@@ -187,8 +192,8 @@ void make_move(pos_t *pos, move_t m)
     pos->pl[to]   = pos->pl[from];
     pos->pl[from] = NO_PIECE;
     // pos info
-    //TODO: CASTLING &
-    if (pos->side == BLACK) pos->fm++;
+    //TODO: FLAGS
+    if (c == BLACK) pos->fm++;
     flip_side(pos);
 }
 
@@ -198,7 +203,7 @@ int is_king_safe(pos_t *pos, color_t c)
 {
     int sq = pos->ks[c];
     assert((unsigned char)sq < 64);
-    return !((ATTACKS_PAWN[c^1][sq] & BB(pos, c^1, PAWN))
+    return !((ATTACKS_PAWN[c][sq]   & BB(pos, c^1, PAWN))
             | (ATTACKS_KNIGHT[sq]   & BB(pos, c^1, KNIGHT))
             | (ATTACKS_KING[sq]     & BB(pos, c^1, KING))
             | (rook_attacks_fast(sq, pos->all)   & (BB(pos, c^1, ROOK)   | BB(pos, c^1, QUEEN)))
@@ -206,22 +211,42 @@ int is_king_safe(pos_t *pos, color_t c)
     //TODO: CASTLING
 }
 
-void unmake_move(pos_t *pos)
+void unmake_move(pos_t *pos, int from, int to, color_t c)
 {
-    // pl[from] = pl[to]
-    // pl[to]   = saved->captured
-    // 
+    saved_t s = pos->ply_stack[pos->ply--];
+    BB(pos, c, piece_type(pos->pl[to])) &= ~sq_bb(to);
+    BB(pos, c, piece_type(pos->pl[to])) |=  sq_bb(from);
+    pos->occ[c] |=  sq_bb(from);
+    pos->occ[c] &= ~sq_bb(to);
+    pos->pl[from] = pos->pl[to];
+    if (piece_type(pos->pl[to]) == KING) pos->ks[c] = from;
+    if (s.captured) {
+        pos->pl[to] = s.captured;
+        BB(pos, c^1, piece_type(s.captured)) |= sq_bb(to);
+    } else {
+        pos->pl[to] = NO_PIECE;
+        pos->all &= ~sq_bb(to);
+    }
+    pos->castling = s.castling;
+    pos->ep       = s.ep;
+    pos->hm       = s.hm;
+    if (pos->side == WHITE) pos->fm--;
+    flip_side(pos);
 }
 
-int gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal)
+void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal)
 {
     move_t *p = ml_legal->moves;
     for (size_t i = 0; i < ml_pseudo->count; i++) {
-        make_move(pos, ml_pseudo->moves[i]);
+        move_t m = ml_pseudo->moves[i];
+        int from = mfrom(m);
+        int to   = mto(m);
+        int flag = mflag(m);
+        make_move(pos, from, to, flag, c);
         if (is_king_safe(pos, c)) {
             *p++ = ml_pseudo->moves[i];
             ml_legal->count++;
         }
-        // unmake_move()
+        unmake_move(pos, from, to, c);
     }
 }

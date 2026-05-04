@@ -88,7 +88,7 @@ pos_t *starting_pos(void)
     pos->ks[BLACK] = e8;
     // CASTLING RIGHTS / EN PASSANT / MOVE COUNT
     pos->castling = ALL_CASTLING;
-    pos->en_passant = NO_ENPASSANT;
+    pos->ep = NO_ENPASSANT;
     pos->hm = 0;
     pos->fm = 0;
     pos->ply = 0;
@@ -148,7 +148,7 @@ void print_pos_info(pos_t *pos)
             (pos->castling & B_00)  ? 1 : 0,
             (pos->castling & B_000) ? 1 : 0);
     printf("EN PASSANT: '%s'\n", 
-            (pos->en_passant == NO_ENPASSANT) ? "NO_ENPASSANT" : sq_to_str(pos->en_passant));
+            (pos->ep == NO_ENPASSANT) ? "NO_ENPASSANT" : sq_to_str(pos->ep));
     printf("HM: '%i'\n", pos->hm);
     printf("FM: '%i'\n", pos->fm);
 }
@@ -234,12 +234,12 @@ pos_t *parse_fen(char *fen)
     fen++;
     // En passant
     if (*fen == '-'){
-        pos->en_passant = NO_ENPASSANT;
+        pos->ep = NO_ENPASSANT;
     } else {
         int f = *fen - 'a';
         int r = *(fen + 1) - '1';
         if (!VALID_RF(r, f)){ free(pos); return NULL; }
-        pos->en_passant = r * 8 + f;
+        pos->ep = r * 8 + f;
     }
     fen += 2;
     // Half move & full move
