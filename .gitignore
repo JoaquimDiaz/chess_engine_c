@@ -1,0 +1,6 @@
+*.o
+*.d
+src/magic.c
+compile_commands.json
+build/
+
