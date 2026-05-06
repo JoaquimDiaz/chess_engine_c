@@ -61,9 +61,17 @@ void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, color_t c)
         if (push) ml->moves[ml->count++] = mencode(sq, poplsb(&push), NO_FLAG);
         // captures
         bb_t captures = ATTACKS_PAWN[c][sq] & pos->occ[c^1];
-        while (captures) {
-            ml->moves[ml->count++] = mencode(sq, poplsb(&captures), CAPTURE);
-        }
+        if (captures & ((c == WHITE) ? RANK_8 : RANK_1)) 
+            while (captures) 
+            {
+                int to_sq = poplsb(&captures);
+                ml->moves[ml->count++] = mencode(sq, to_sq, PROM_CAP_N);
+                ml->moves[ml->count++] = mencode(sq, to_sq, PROM_CAP_B);
+                ml->moves[ml->count++] = mencode(sq, to_sq, PROM_CAP_R);
+                ml->moves[ml->count++] = mencode(sq, to_sq, PROM_CAP_Q);
+            }
+        else 
+            while (captures) ml->moves[ml->count++] = mencode(sq, poplsb(&captures), CAPTURE);
     }
 }
 
@@ -173,7 +181,42 @@ void quick_make(pos_t *pos, int from, int to)
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c)
 {
-    pos->ply_stack[pos->ply++] = (saved_t){pos->pl[to], pos->castling, pos->ep, pos->hm};
+    // save board state
+    pos->ply_stack[++pos->ply] = (saved_t){ pos->pl[to], pos->castling, pos->ep, pos->hm };
+    // from
+    BB(pos, c, piece_type(pos->pl[from])) &= ~sq_bb(from);
+    pos->occ[c] &= ~sq_bb(from);
+    pos->all    &= ~sq_bb(from);
+    if (is_capture(flag)) {
+        BB(pos, c^1, piece_type(pos->pl[to])) &= ~sq_bb(to);
+        pos->occ[c^1] &= ~sq_bb(to);
+    } else {
+        pos->all |= ~sq_bb(to);
+    }
+    if (is_prom(flag))
+    {
+        int p = prom_piece(flag);
+        BB(pos, c, p) |= sq_bb(to);
+        pos->pl[to] = make_piece(c, p);
+    }
+    switch(flag) {
+        case NO_FLAG: break;
+        case DOUBLE_PAWN: pos->ep = (c == WHITE) ? (to << 8) : (to >> 8); break;
+        case EN_PASSANT: break;
+        case CASTLE_KING: break;
+        case CASTLE_QUEEN: break;
+        default: break;
+    }
+    pos->pl[from] = NO_PIECE;
+    //pos info
+    pos->castling &= (CASTLING_TABLE[from] & CASTLING_TABLE[to]);
+    if (pos->side == BLACK) pos->fm++;
+    flip_side(pos);
+}
+
+void make_move(pos_t *pos, int from, int to, int flag, color_t c)
+{
+    pos->ply_stack[++pos->ply] = (saved_t){pos->pl[to], pos->castling, pos->ep, pos->hm};
     if (piece_type(pos->pl[from]) == KING)
         pos->ks[c] = to;
     // bitboard
@@ -192,7 +235,8 @@ void make_move(pos_t *pos, int from, int to, int flag, color_t c)
     pos->pl[to]   = pos->pl[from];
     pos->pl[from] = NO_PIECE;
     // pos info
-    //TODO: FLAGS
+    // FLAGS
+    pos->castling &= CASTLING_TABLE[from] & CASTLING_TABLE[to];
     if (c == BLACK) pos->fm++;
     flip_side(pos);
 }

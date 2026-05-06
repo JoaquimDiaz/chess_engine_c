@@ -90,3 +90,11 @@ Test(ParseFen, invalidEnPassant)
     cr_assert(pos == NULL);
     free(pos);
 }
+
+Test(ParseFen, noEPnoCastle)
+{
+    pos_t *pos = parse_fen("3q1q2/4P3/8/8/6k1/8/6K1/8 w - - 0 1");
+    cr_assert(pos != NULL);
+    cr_assert(pos->ep == NO_ENPASSANT);
+    free(pos);
+}

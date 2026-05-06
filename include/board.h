@@ -177,6 +177,7 @@ pos_t *starting_pos(void);
 void print_bb(bb_t bb);
 void print_pos(pos_t *pos);
 void print_pos_info(pos_t *pos);
+void _init_castling_table(void);
 
 // * FEN PARSING
 pos_t *parse_fen(char *fen);
