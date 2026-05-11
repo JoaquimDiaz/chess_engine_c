@@ -10,8 +10,9 @@ Test(PawnMove, DoublePushWhite)
     pos_t *pos = parse_fen("8/pppppppp/8/8/8/8/PPPPPPPP/8 w - - 0 1");
     ml_t mlp = {0};
     ml_t mll = {0};
-    _all_pseudo_legal(pos, &mlp, pos->side);
-    gen_legal(pos, pos->side, &mlp, &mll);
+    // _all_pseudo_legal(pos, &mlp, pos->side);
+    // _pseudo_legal_pawn(pos, &mlp, pos->side);
+    gen_legal(pos, pos->side, &mlp);
     cr_assert(mlp.count == 16, "Wrong move count: %zu, should be 16", mlp.count);
     cr_assert(mll.count == 16, "Wrong move count: %zu, should be 16", mlp.count);
 }
@@ -23,8 +24,9 @@ Test(PawnMove, DoublePushBlack)
     pos_t *pos = parse_fen("8/pppppppp/8/8/8/8/PPPPPPPP/8 b - - 0 1");
     ml_t mlp = {0};
     ml_t mll = {0};
-    _all_pseudo_legal(pos, &mlp, pos->side);
-    gen_legal(pos, pos->side, &mlp, &mll);
+    // _all_pseudo_legal(pos, &mlp, pos->side);
+    // _pseudo_legal_pawn(pos, &mlp, pos->side);
+    gen_legal(pos, pos->side, &mlp);
     cr_assert(mlp.count == 16, "Wrong move count: %zu, should be 16", mlp.count);
     cr_assert(mll.count == 16, "Wrong move count: %zu, should be 16", mlp.count);
 }
@@ -36,8 +38,8 @@ Test(PawnMove, WhitePawnProm)
     pos_t *pos = parse_fen("3q1q2/4P3/8/8/6k1/8/6K1/8 w - - 0 1");
     ml_t mlp = {0};
     ml_t mll = {0};
-    _all_pseudo_legal(pos, &mlp, pos->side);
-    gen_legal(pos, pos->side, &mlp, &mll);
+    // _all_pseudo_legal(pos, &mlp, pos->side);
+    gen_legal(pos, pos->side, &mlp);
 
     move_t to_find[] = {
         mencode(e7, e8, PROM_N),   mencode(e7, e8, PROM_B),
@@ -76,8 +78,8 @@ Test(PawnMove, BlackPawnProm)
     pos_t *pos = parse_fen("8/1k6/8/1K6/8/8/3p4/2R1B3 b - - 0 1");
     ml_t mlp = {0};
     ml_t mll = {0};
-    _all_pseudo_legal(pos, &mlp, pos->side);
-    gen_legal(pos, pos->side, &mlp, &mll);
+    // _all_pseudo_legal(pos, &mlp, pos->side);
+    gen_legal(pos, pos->side, &mlp);
     move_t to_find[] = {
         mencode(d2, d1, PROM_N), mencode(d2, d1, PROM_B),
         mencode(d2, d1, PROM_R), mencode(d2, d1, PROM_Q),

@@ -45,8 +45,8 @@ static uint64_t find_magic(int is_bishop, int sq)
     {
         occupancies[i] = subset_from_index(i, bit_count, mask);
         attacks[i] = is_bishop 
-            ? attacks_rook_slow(sq, occupancies[i])
-            : attacks_bishop_slow(sq, occupancies[i]);
+            ? attacks_bishop_slow(sq, occupancies[i])
+            : attacks_rook_slow(sq, occupancies[i]);
     }
     // Try random magic numbers
     for (int attempt = 0; attempt < 100000000; attempt++) 

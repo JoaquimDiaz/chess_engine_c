@@ -29,6 +29,12 @@ typedef enum {
     PROM_CAP_Q   = 13,
 } flags_t;
 
+// Castling masks
+#define MASK_W00  0x60
+#define MASK_W000 0x0E
+#define MASK_B00  0x6000000000000000
+#define MASK_B000 0x0E00000000000000
+
 // * MOVE HELPERS
 
 // Print helper
@@ -51,15 +57,21 @@ static inline int mflag(move_t m) { return (m >> 12) & 0x0F; }
 // Flags
 static inline int is_prom(flags_t f) { return f >= PROM_N; }
 static inline int is_capture(flags_t f) { 
-    return f == CAPTURE || f == EN_PASSANT || f >= PROM_CAP_N; 
+    return f == CAPTURE || f >= PROM_CAP_N; 
 }
 static inline int is_castle(flags_t f) { return f == CASTLE_KING || f == CASTLE_QUEEN; }
 static inline int prom_piece(flags_t f) { return KNIGHT + ((f - PROM_N) & 3); }
+
+static inline void ml_add(ml_t *ml, int from, int to, flags_t f) {
+    assert(ml->count <= MAX_MOVES);
+    ml->moves[ml->count++] = mencode(from, to, f);
+}
 
 #define ITER_ML(ml, it) for (size_t (it) = 0; (it) < (ml).count; (it)++)
 
 // * FUNCTIONS
 void print_move(move_t m);
+int is_square_attacked(pos_t *pos, int sq, color_t c);
 void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, color_t c);
 void _pseudo_legal_knight(pos_t *pos, ml_t *ml, color_t c);
 void _pseudo_legal_king(pos_t *pos, ml_t *ml, color_t c);
@@ -70,6 +82,8 @@ void _all_pseudo_legal(pos_t *pos, ml_t *ml, color_t c);
 
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c);
-void unmake_move(pos_t *pos, int from, int to, color_t c);
+void unmake_move(pos_t *pos, int from, int to, int flag);
 void quick_make(pos_t *pos, int from, int to);
-void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal);
+void gen_legal(pos_t *pos, color_t c, ml_t *ml_legal);
+// void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal);
+uint64_t perft(pos_t *pos, int depth);

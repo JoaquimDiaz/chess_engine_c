@@ -8,16 +8,27 @@ char *FEN_PROM_CAP = "3q1q2/4P3/8/8/6k1/8/6K1/8 w - - 0 1";
 
 int main(void)
 {
-    
-    _init_castling_table();
     _init_attacks_all();
+    _init_castling_table();
+
     // pos_t *pos = starting_pos();
-    pos_t *pos = parse_fen(FEN_PROM_CAP);
-    ml_t pseudo_ml = {0};
-    ml_t legal_ml  = {0};
-    _all_pseudo_legal(pos, &pseudo_ml, pos->side);
-    // gen_legal(pos, pos->side, &pseudo_ml, &legal_ml);
-    PRINTML(pseudo_ml);
+    // make_move(pos, b1, c3, NO_FLAG, pos->side);
+    // print_pos(pos);
     // print_pos_info(pos);
-    return 0;
+    // print_bb(BB(pos, WHITE, KNIGHT));
+    // putchar('\n');
+    // print_bb(pos->occ[WHITE]);
+
+pos_t *pos = NULL;
+    for (size_t depth = 0; depth < 11; depth++)
+    {
+        pos = starting_pos();
+        uint64_t n = perft(pos, depth);
+        printf("depth: %zu, perft: %lu\n", depth, n);
+        // print_pos(pos);
+        // print_pos_info(pos);
+        // getchar();
+    }
+    free(pos);
+
 }

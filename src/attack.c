@@ -256,12 +256,12 @@ bb_t queen_attacks_fast(int sq, bb_t occ)
 
 void _init_attacks_all(void)
 {
-    _init_attacks_pawn();
-    _init_attacks_knight();
-    _init_attacks_king();
     _init_masks_rook();
     _init_masks_bishop();
     _init_offset_table();
+    _init_attacks_pawn();
+    _init_attacks_knight();
+    _init_attacks_king();
     _init_rb_attack_tables();
 }
 

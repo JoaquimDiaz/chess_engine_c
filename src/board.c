@@ -84,8 +84,8 @@ pos_t *starting_pos(void)
     _set_piecelist(pos);
     pos->side = WHITE;
     // KING SQUARES
-    pos->ks[WHITE] = e1;
-    pos->ks[BLACK] = e8;
+    pos->ks[WHITE] = WK_START_SQ;
+    pos->ks[BLACK] = BK_START_SQ;
     // CASTLING RIGHTS / EN PASSANT / MOVE COUNT
     pos->castling = ALL_CASTLING;
     pos->ep = NO_ENPASSANT;

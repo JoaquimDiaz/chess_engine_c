@@ -8,8 +8,8 @@ Test(Move, EncodeDecodeFromTo)
     ITER_SQ(sq) {
         move_t m1 = mencode(a1, sq, NO_FLAG);
         move_t m2 = mencode(sq, a1, NO_FLAG);
-        cr_assert(mto(m1) == sq);
-        cr_assert(mfrom(m2) == sq);
+        cr_assert((sq_t)mto(m1) == sq);
+        cr_assert((sq_t)mfrom(m2) == sq);
     }
 }
 

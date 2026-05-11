@@ -30,6 +30,9 @@ typedef enum {
     SQ_COUNT
 } sq_t;
 
+#define BK_START_SQ e8
+#define WK_START_SQ e1
+
 typedef enum {
     NO_PIECE,
     PAWN,
