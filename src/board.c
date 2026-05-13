@@ -7,6 +7,39 @@
 const bb_t RANKS[8] = { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8 };
 const bb_t FILES[8] = { FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H };
 
+bb_t MASK_RF[SQ_COUNT];
+
+void _init_mask_rf(void)
+{
+    ITER_SQ(sq) MASK_RF[sq] = RANKS[sq >> 3] | FILES[sq & 7];
+}
+
+bb_t MASK_DIAG[SQ_COUNT];
+
+void _init_mask_diag(void)
+{
+    const int r_dir[] = {1, 1, -1, -1};
+    const int f_dir[] = {1, -1, 1, -1};
+    ITER_SQ(sq)
+    {
+        bb_t diag_bb = sq_bb(sq);
+        int rank = sq >> 3;
+        int file = sq & 7;
+        for (size_t i = 0; i < 4; i++)
+        {
+            int rd = rank + r_dir[i];
+            int fd = file + f_dir[i];
+            while (VALID_RF(rd, fd))
+            {
+                diag_bb |= sq_bb(rd * 8 + fd);
+                rd += r_dir[i];
+                fd += f_dir[i];
+            }
+        }
+        MASK_DIAG[sq] = diag_bb;
+    }
+}
+
 uint8_t CASTLING_TABLE[SQ_COUNT];
 
 void _init_castling_table(void)
@@ -101,6 +134,7 @@ pos_t *starting_pos(void)
 
 void print_bb(bb_t bb)
 {
+    printf("---\n");
     for (int r = 7; r >= 0; r--) {
         for (int f = 0; f < 8; f++) {
             printf("%i ", (sq_bb(r * 8 + f) & bb) ? 1 : 0);

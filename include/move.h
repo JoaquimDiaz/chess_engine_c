@@ -1,11 +1,14 @@
 #pragma once
 
+#include <time.h>
+
 #include "board.h"
 #include "attack.h"
 
 typedef uint32_t move_t;
 
 #define MAX_MOVES 256
+#define MAX_DEPTH 64
 
 typedef struct {
     move_t moves[MAX_MOVES];
@@ -34,6 +37,11 @@ typedef enum {
 #define MASK_W000 0x0E
 #define MASK_B00  0x6000000000000000
 #define MASK_B000 0x0E00000000000000
+// Safe castling masks
+#define MASK_W00_SAFE  0x70
+#define MASK_W000_SAFE 0x1C
+#define MASK_B00_SAFE  0x7000000000000000
+#define MASK_B000_SAFE 0x1C00000000000000
 
 // * MOVE HELPERS
 
@@ -74,16 +82,21 @@ void print_move(move_t m);
 int is_square_attacked(pos_t *pos, int sq, color_t c);
 void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, color_t c);
 void _pseudo_legal_knight(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_king(pos_t *pos, ml_t *ml, color_t c);
+void _pseudo_legal_king(pos_t *pos, ml_t *ml, bb_t attacked, color_t c);
+// void _pseudo_legal_king(pos_t *pos, ml_t *ml, color_t c);
 void _pseudo_legal_rook(pos_t *pos, ml_t *ml, color_t c);
 void _pseudo_legal_bishop(pos_t *pos, ml_t *ml, color_t c);
 void _pseudo_legal_queen(pos_t *pos, ml_t *ml, color_t c);
-void _all_pseudo_legal(pos_t *pos, ml_t *ml, color_t c);
+void gen_pseudo_legal(pos_t *pos, ml_t *ml, bb_t attacked, color_t c);
 
+void compute_pin(pos_t *pos, int us);
+void compute_checkers(pos_t *pos, int us);
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c);
 void unmake_move(pos_t *pos, int from, int to, int flag);
 void quick_make(pos_t *pos, int from, int to);
-void gen_legal(pos_t *pos, color_t c, ml_t *ml_legal);
-// void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal);
-uint64_t perft(pos_t *pos, int depth);
+void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal);
+uint64_t perft(pos_t *pos, int depth, int ply);
+void perft_root(pos_t *pos, int max_depth);
+void init_engine(void);
+void make_random(pos_t *pos);

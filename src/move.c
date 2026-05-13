@@ -49,6 +49,26 @@ int is_square_attacked(pos_t *pos, int sq, color_t c)
             || ATTACKS_KING[sq] & BB(pos, c, KING));
 }
 
+// Compute attacked squares into a bitboard
+bb_t attacked_squares(pos_t *pos, int us)
+{
+    int them = us^1;
+    bb_t attacked = 0ull;
+    bb_t pawns   = BB(pos, them, PAWN);
+    bb_t knights = BB(pos, them, KNIGHT);
+    bb_t bishops = BB(pos, them, BISHOP);
+    bb_t rooks   = BB(pos, them, ROOK);
+    bb_t queens  = BB(pos, them, QUEEN);
+    bb_t king    = BB(pos, them, KING);
+    while (pawns)   attacked |= ATTACKS_PAWN[them][poplsb(&pawns)];
+    while (knights) attacked |= ATTACKS_KNIGHT[poplsb(&knights)];
+    while (bishops) attacked |= attacks_bishop_slow(poplsb(&bishops), pos->all);
+    while (rooks)   attacked |= attacks_rook_slow(poplsb(&rooks), pos->all);
+    while (queens)  attacked |= queen_attacks_fast(poplsb(&queens), pos->all);
+    attacked |= ATTACKS_KING[poplsb(&king)];
+    return attacked;
+}
+
 void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, color_t c)
 {
     bb_t bb = BB(pos, c, PAWN);
@@ -105,40 +125,35 @@ void _pseudo_legal_knight(pos_t *pos, ml_t *ml, color_t c)
     }
 }
 
-void _pseudo_legal_king(pos_t *pos, ml_t *ml, color_t c)
+void _pseudo_legal_king(pos_t *pos, ml_t *ml, bb_t attacked, color_t c)
 {
     bb_t bb = BB(pos, c, KING);
     int sq = poplsb(&bb);
-    bb_t captures = ATTACKS_KING[sq] & pos->occ[c^1];
+    bb_t captures = ATTACKS_KING[sq] & pos->occ[c^1] & ~attacked;
     while (captures) {
         ml_add(ml, sq, poplsb(&captures), CAPTURE);
     }
-    bb_t quiet_moves = ATTACKS_KING[sq] & ~pos->all;
+    bb_t quiet_moves = ATTACKS_KING[sq] & ~pos->all & ~attacked;
     while (quiet_moves) {
         ml_add(ml, sq, poplsb(&quiet_moves), NO_FLAG);
     }
     if (c == WHITE) {
         if ((pos->castling & W_00) 
                 && !(pos->all & MASK_W00)
-                && !is_square_attacked(pos, f1, BLACK)
-                && !is_square_attacked(pos, g1, BLACK)
-                && !is_square_attacked(pos, e1, BLACK))
+                && !(attacked & MASK_W00_SAFE))
             ml_add(ml, sq, g1, CASTLE_KING);
-        if ((pos->castling & W_000) && !(pos->all & MASK_W000)
-                && !is_square_attacked(pos, c1, BLACK)
-                && !is_square_attacked(pos, d1, BLACK)
-                && !is_square_attacked(pos, e1, BLACK))
+        if ((pos->castling & W_000) 
+                && !(pos->all & MASK_W000)
+                && !(attacked & MASK_W000_SAFE))
             ml_add(ml, sq, c1, CASTLE_QUEEN);
     } else {
-        if ((pos->castling & B_00) && !(pos->all & MASK_B00)
-                && !is_square_attacked(pos, f8, WHITE)
-                && !is_square_attacked(pos, g8, WHITE)
-                && !is_square_attacked(pos, e8, WHITE))
+        if ((pos->castling & B_00) 
+                && !(pos->all & MASK_B00)
+                && !(attacked & MASK_B00_SAFE))
             ml_add(ml, sq, g8, CASTLE_KING);
-        if ((pos->castling & B_000) && !(pos->all & MASK_B000)
-                && !is_square_attacked(pos, c8, WHITE)
-                && !is_square_attacked(pos, d8, WHITE)
-                && !is_square_attacked(pos, e8, WHITE))
+        if ((pos->castling & B_000) 
+                && !(pos->all & MASK_B000)
+                && !(attacked & MASK_B000_SAFE))
             ml_add(ml, sq, c8, CASTLE_QUEEN);
     }
 }
@@ -194,11 +209,11 @@ void _pseudo_legal_queen(pos_t *pos, ml_t *ml, color_t c)
     }
 }
 
-void _all_pseudo_legal(pos_t *pos, ml_t *ml, color_t c)
+void gen_pseudo_legal(pos_t *pos, ml_t *ml, bb_t attacked, color_t c)
 {
     _pseudo_legal_pawn(pos, ml, c);
     _pseudo_legal_knight(pos, ml, c);
-    _pseudo_legal_king(pos, ml, c);
+    _pseudo_legal_king(pos, ml, attacked, c);
     _pseudo_legal_rook(pos, ml, c);
     _pseudo_legal_bishop(pos, ml, c);
     _pseudo_legal_queen(pos, ml, c);
@@ -218,14 +233,22 @@ void quick_make(pos_t *pos, int from, int to)
 void make_move(pos_t *pos, int from, int to, int flag, color_t c)
 {
     // save board state
-    pos->ply_stack[++pos->ply] = (saved_t){ pos->pl[to], pos->castling, pos->ep, pos->hm };
+    pos->ply_stack[++pos->ply] = (saved_t){ 
+        pos->pinned[c],
+        pos->checkers[c],
+        pos->pl[to], 
+        pos->castling, 
+        pos->ep, 
+        pos->hm 
+    };
     if (piece_type(pos->pl[from]) == KING) pos->ks[c] = to;
+    int sq_r, sq_ep;
     switch(flag) {
         case DOUBLE_PAWN: 
             pos->ep = (c == WHITE) ? (to - 8) : (to + 8); 
             break;
         case EN_PASSANT: 
-            int sq_ep = (c == WHITE) ? pos->ep - 8 : pos->ep + 8;
+            sq_ep = (c == WHITE) ? pos->ep - 8 : pos->ep + 8;
             BB(pos, c^1, PAWN) &= ~sq_bb(sq_ep);
             pos->ply_stack[pos->ply].captured = pos->pl[sq_ep];
             pos->pl[sq_ep] = NO_PIECE;
@@ -235,7 +258,7 @@ void make_move(pos_t *pos, int from, int to, int flag, color_t c)
             break;
         case CASTLE_KING: 
             // Would it be better to declare sq_r outside?
-            int sq_r = (c == WHITE) ? h1 : h8;
+            sq_r = (c == WHITE) ? h1 : h8;
             BB(pos, c, ROOK) &= ~sq_bb(sq_r); 
             BB(pos, c, ROOK) |= sq_bb(sq_r - 2); 
             pos->pl[sq_r - 2] = pos->pl[sq_r];
@@ -288,16 +311,17 @@ void unmake_move(pos_t *pos, int from, int to, int flag)
     color_t c = pos->side^1;
     saved_t s = pos->ply_stack[pos->ply--];
     if (piece_type(pos->pl[to]) == KING) pos->ks[c] = from;
+    int sq_ep, sq_r;
     switch(flag) {
         case EN_PASSANT: 
-            int sq_ep = (c == WHITE) ? s.ep - 8 : s.ep + 8;
+            sq_ep = (c == WHITE) ? s.ep - 8 : s.ep + 8;
             BB(pos, c^1, PAWN) |= sq_bb(sq_ep);
             pos->pl[sq_ep] = make_piece(c^1, PAWN);
             pos->occ[c^1] |= sq_bb(sq_ep); 
             break;
         case CASTLE_KING: 
             // Would it be better to declare sq_r outside?
-            int sq_r = (c == WHITE) ? h1 : h8;
+            sq_r = (c == WHITE) ? h1 : h8;
             BB(pos, c, ROOK) |= sq_bb(sq_r); 
             BB(pos, c, ROOK) &= ~sq_bb(sq_r - 2); 
             pos->pl[sq_r]     = pos->pl[sq_r - 2];
@@ -341,11 +365,61 @@ void unmake_move(pos_t *pos, int from, int to, int flag)
     }
     pos->all = pos->occ[c] | pos->occ[c^1];
     //pos info
-    pos->castling = s.castling;
-    pos->ep       = s.ep;
-    pos->hm       = s.hm;
+    pos->pinned[c]   = s.pinned;
+    pos->checkers[c] = s.checkers;
+    pos->castling  = s.castling;
+    pos->ep        = s.ep;
+    pos->hm        = s.hm;
     if (pos->side == WHITE) pos->fm--;
     flip_side(pos);
+}
+
+void compute_pin(pos_t *pos, int us)
+{
+    int them = us^1;
+    int k_sq = pos->ks[us];
+    // ROOK PINNERS
+    bb_t rook_rf_bb = MASK_RF[k_sq];
+    bb_t potential_pin = rook_attacks_fast(k_sq, pos->all) & pos->occ[us];
+    while (potential_pin)
+    {
+        int sq = poplsb(&potential_pin);
+        bb_t pinners_bb = rook_attacks_fast(sq, pos->all) 
+            & rook_rf_bb & pos->occ[them]
+            & (BB(pos, them, ROOK) | BB(pos, them, QUEEN));
+        if (pinners_bb)
+        {
+            pos->pinners[them] |= pinners_bb;
+            pos->pinned[us]    |= sq_bb(sq);
+        }
+    }
+    // BISHOP PINNERS
+    bb_t diag_bb = MASK_DIAG[k_sq];
+    potential_pin = bishop_attacks_fast(k_sq, pos->all) & pos->occ[us];
+    while (potential_pin)
+    {
+        int sq = poplsb(&potential_pin);
+        bb_t pinners_bb = bishop_attacks_fast(sq, pos->all) 
+            & diag_bb & pos->occ[them]
+            & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN));
+        if (pinners_bb)
+        {
+            pos->pinners[them] |= pinners_bb;
+            pos->pinned[us]    |= sq_bb(sq);
+        }
+    }
+}
+
+void compute_checkers(pos_t *pos, int us)
+{
+    int them = us^1;
+    int k_sq = pos->ks[us];
+    pos->checkers[us] = (
+          (ATTACKS_KNIGHT[k_sq]     & BB(pos, them, KNIGHT))
+        | (ATTACKS_PAWN[them][k_sq] & BB(pos, them, PAWN))
+        | (rook_attacks_fast(k_sq, pos->all)   & (BB(pos, them, ROOK)   | BB(pos, them, QUEEN)))
+        | (bishop_attacks_fast(k_sq, pos->all) & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN)))
+        );
 }
 
 int is_king_safe(pos_t *pos, color_t c)
@@ -359,22 +433,29 @@ int is_king_safe(pos_t *pos, color_t c)
             | (bishop_attacks_fast(sq, pos->all) & (BB(pos, c^1, BISHOP) | BB(pos, c^1, QUEEN))));
 }
 
-void gen_legal(pos_t *pos, color_t c, ml_t *ml_legal)
+void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal)
 {
-    ml_t ml_pseudo = {0};
-    _all_pseudo_legal(pos, &ml_pseudo, c);
-    move_t *p = ml_legal->moves;
-    for (size_t i = 0; i < ml_pseudo.count; i++) {
-        move_t m = ml_pseudo.moves[i];
-        int from = mfrom(m);
-        int to   = mto(m);
-        int flag = mflag(m);
-        make_move(pos, from, to, flag, c);
-        if (is_king_safe(pos, c)) {
-            *p++ = ml_pseudo.moves[i];
-            ml_legal->count++;
+    bb_t attacked = attacked_squares(pos, c);
+    compute_checkers(pos, c);
+    compute_pin(pos, c);
+    if (!pos->checkers[c] && !pos->pinned[c])
+        gen_pseudo_legal(pos, ml_legal, attacked, c);
+    else
+    {
+        gen_pseudo_legal(pos, ml_pseudo, attacked, c);
+        move_t *p = ml_legal->moves;
+        for (size_t i = 0; i < ml_pseudo->count; i++) {
+            move_t m = ml_pseudo->moves[i];
+            int from = mfrom(m);
+            int to   = mto(m);
+            int flag = mflag(m);
+            make_move(pos, from, to, flag, c);
+            if (is_king_safe(pos, c)) {
+                *p++ = ml_pseudo->moves[i];
+                ml_legal->count++;
+            }
+            unmake_move(pos, from, to, flag);
         }
-        unmake_move(pos, from, to, flag);
     }
 }
 
@@ -382,26 +463,70 @@ void gen_legal(pos_t *pos, color_t c, ml_t *ml_legal)
  * # PERFT
  * ------------------------------------------------------------------------- */
 
-uint64_t perft(pos_t *pos, int depth)
+ml_t pseudo_list[MAX_DEPTH];
+ml_t legal_list[MAX_DEPTH];
+
+uint64_t perft(pos_t *pos, int depth, int ply)
 {
-    if (depth == 0) 
-      return 1ULL;
+    if (depth == 0) return 1ULL;
 
-    ml_t move_list = {0};
-    uint64_t nodes = 0ull;
+    ml_t *ml_pseudo = &pseudo_list[ply];
+    ml_t *ml_legal  = &legal_list[ply];
+    ml_pseudo->count = 0;
+    ml_legal->count  = 0;
 
-    gen_legal(pos, pos->side, &move_list);
-    if (depth == 1)
-        return move_list.count;
+    uint64_t nodes = 0;
 
-    for (size_t i = 0; i < move_list.count; i++) {
-        move_t m = move_list.moves[i];
+    gen_legal(pos, pos->side, ml_pseudo, ml_legal);
+    if (depth == 1) return ml_legal->count;
+
+    for (size_t i = 0; i < ml_legal->count; i++) {
+        move_t m = ml_legal->moves[i];
         int from = mfrom(m);
         int to   = mto(m);
         int flag = mflag(m);
         make_move(pos, from, to, flag, pos->side);
-        nodes += perft(pos, depth - 1);
+        nodes += perft(pos, depth - 1, ply + 1);
         unmake_move(pos, from, to, flag);
     }
     return nodes;
+}
+
+void perft_root(pos_t *pos, int max_depth)
+{
+    for (int d = 0; d <= max_depth; d++) {
+        struct timespec t0, t1;
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+
+        uint64_t nodes = perft(pos, d, 0);
+
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        double ms = (t1.tv_sec - t0.tv_sec) * 1000.0
+                  + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+
+        printf("depth: %d, perft: %lu, time: %.1f ms\n", d, nodes, ms);
+    }
+}
+
+/* ----------------------------------------------------------------------------
+ * # INITIALISATION & RANDOM MOVE
+ * ------------------------------------------------------------------------- */
+
+void init_engine(void)
+{
+    srand(time(NULL));
+    _init_attacks_all();
+    _init_castling_table();
+    _init_mask_rf();
+    _init_mask_diag();
+}
+
+void make_random(pos_t *pos)
+{
+    ml_t mlp = {0};
+    ml_t mll = {0};
+    gen_legal(pos, pos->side, &mlp, &mll);
+    size_t i = rand() % mll.count;
+    move_t m = mll.moves[i];
+    make_move(pos, mfrom(m), mto(m), mflag(m), pos->side);
 }

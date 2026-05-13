@@ -60,6 +60,8 @@ typedef enum {
 #define MAX_PLY 256
 
 typedef struct {
+    bb_t pinned;
+    bb_t checkers;
     uint8_t  captured;
     uint8_t  castling;
     uint8_t  ep;
@@ -77,6 +79,9 @@ typedef struct {
     uint8_t  ep;
     uint8_t  hm;
     uint16_t fm;
+    bb_t     pinned[COLORS];
+    bb_t     pinners[COLORS];
+    bb_t     checkers[COLORS];
     saved_t  ply_stack[MAX_PLY];
     int      ply;
 } pos_t;
@@ -108,6 +113,8 @@ extern const bb_t RANKS[8];
 extern const bb_t FILES[8];
 
 extern uint8_t CASTLING_TABLE[SQ_COUNT];
+extern bb_t    MASK_RF[SQ_COUNT];
+extern bb_t    MASK_DIAG[SQ_COUNT];
 
 /* ----------------------------------------------------------------------------
  * # UTILITY FUNCTIONS
@@ -180,7 +187,11 @@ pos_t *starting_pos(void);
 void print_bb(bb_t bb);
 void print_pos(pos_t *pos);
 void print_pos_info(pos_t *pos);
+
+// * TABLES
 void _init_castling_table(void);
+void _init_mask_rf(void);
+void _init_mask_diag(void);
 
 // * FEN PARSING
 pos_t *parse_fen(char *fen);
