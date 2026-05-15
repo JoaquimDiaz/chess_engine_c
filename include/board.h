@@ -60,6 +60,7 @@ typedef enum {
 #define MAX_PLY 256
 
 typedef struct {
+    bb_t attacked;
     bb_t pinned;
     bb_t checkers;
     uint8_t  captured;
@@ -79,6 +80,7 @@ typedef struct {
     uint8_t  ep;
     uint8_t  hm;
     uint16_t fm;
+    bb_t     attacked[COLORS];
     bb_t     pinned[COLORS];
     bb_t     pinners[COLORS];
     bb_t     checkers[COLORS];
@@ -199,3 +201,4 @@ pos_t *parse_fen(char *fen);
 // * BB UTILS
 int popcount(bb_t bb);
 int poplsb(bb_t *bb);
+int getlsb(bb_t *bb);

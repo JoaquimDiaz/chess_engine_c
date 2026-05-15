@@ -75,27 +75,33 @@ static inline void ml_add(ml_t *ml, int from, int to, flags_t f) {
     ml->moves[ml->count++] = mencode(from, to, f);
 }
 
+static inline bb_t compute_pin_ray(pos_t *pos, int sq, int us) {
+    return (pos->pinned[us] & sq_bb(sq)) ? (MASK_RF[pos->ks[us]] | MASK_DIAG[pos->ks[us]]) : 0ull;
+}
+
 #define ITER_ML(ml, it) for (size_t (it) = 0; (it) < (ml).count; (it)++)
 
 // * FUNCTIONS
 void print_move(move_t m);
-int is_square_attacked(pos_t *pos, int sq, color_t c);
-void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_knight(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_king(pos_t *pos, ml_t *ml, bb_t attacked, color_t c);
+int is_square_attacked(pos_t *pos, int sq, int them);
+void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, int us);
+void _pseudo_legal_knight(pos_t *pos, ml_t *ml, int us);
+void _pseudo_legal_king(pos_t *pos, ml_t *ml, int us);
 // void _pseudo_legal_king(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_rook(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_bishop(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_queen(pos_t *pos, ml_t *ml, color_t c);
-void gen_pseudo_legal(pos_t *pos, ml_t *ml, bb_t attacked, color_t c);
+void _pseudo_legal_rook(pos_t *pos, ml_t *ml, int us);
+void _pseudo_legal_bishop(pos_t *pos, ml_t *ml, int us);
+void _pseudo_legal_queen(pos_t *pos, ml_t *ml, int us);
+void gen_pseudo_legal(pos_t *pos, ml_t *ml, int us);
 
-void compute_pin(pos_t *pos, int us);
-void compute_checkers(pos_t *pos, int us);
+bb_t compute_pin(pos_t *pos, int us);
+bb_t compute_checkers(pos_t *pos, int us);
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c);
 void unmake_move(pos_t *pos, int from, int to, int flag);
 void quick_make(pos_t *pos, int from, int to);
-void gen_legal(pos_t *pos, color_t c, ml_t *ml_pseudo, ml_t *ml_legal);
+void gen_legal(pos_t *pos, int us, ml_t *ml_pseudo, ml_t *ml_legal);
+
+//
 uint64_t perft(pos_t *pos, int depth, int ply);
 void perft_root(pos_t *pos, int max_depth);
 void init_engine(void);

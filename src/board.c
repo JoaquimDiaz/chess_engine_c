@@ -314,3 +314,9 @@ int poplsb(bb_t *bb)
     *bb = b & (b - 1);
     return index;
 }
+
+int getlsb(bb_t *bb)
+{
+    assert(*bb != 0);
+    return __builtin_ctzll(*bb);
+}
