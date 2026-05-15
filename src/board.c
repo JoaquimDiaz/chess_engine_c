@@ -53,6 +53,35 @@ void _init_castling_table(void)
     CASTLING_TABLE[e8] ^= (B_00 | B_000);
 }
 
+static bb_t travel_ray(int start_sq, int rdir, int fdir, int dest_sq)
+{
+    int r = (start_sq >> 3) + rdir;
+    int f = (start_sq & 7) + fdir;
+    bb_t bb = 0ull;
+    while (VALID_RF(r, f)) {
+        bb |= sq_bb(r * 8 + f);
+        if ((r * 8 + f) == dest_sq) return bb;
+        r += rdir;
+        f += fdir;
+    }
+    return 0ull;
+}
+
+bb_t BLOCKERS[64][64];
+
+void _init_blockers(void)
+{
+    const int rdir[] = { 1, 1, 0, -1, -1, -1,  0,  1 };
+    const int fdir[] = { 0, 1, 1,  1,  0, -1, -1, -1 };
+    ITER_SQ(sq1) {
+        ITER_SQ(sq2) {
+            // BLOCKERS[sq1][sq1] = 0ull;
+            for (int i = 0; i < 8; i++) 
+                BLOCKERS[sq1][sq2] |= travel_ray(sq1, rdir[i], fdir[i], sq2);
+        }
+    }
+}
+
 
 /* ----------------------------------------------------------------------------
  * # STARTING POSITION

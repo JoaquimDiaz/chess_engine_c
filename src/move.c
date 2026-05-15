@@ -35,39 +35,8 @@ void print_move(move_t m)
 }
 
 /* ----------------------------------------------------------------------------
- * # PSEUDO LEGAL GENERATION
+ * # PIECE MOVE GENERATION
  * ------------------------------------------------------------------------- */
-
-// Check if square attacked by given color
-int is_square_attacked(pos_t *pos, int sq, int them)
-{
-    assert((unsigned char)sq < SQ_COUNT);
-    return (ATTACKS_KNIGHT[sq] & BB(pos, them, KNIGHT)
-        || bishop_attacks_fast(sq, pos->all) & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN))
-        || rook_attacks_fast(sq, pos->all) & (BB(pos, them, ROOK) | BB(pos, them, QUEEN))
-        || ATTACKS_PAWN[them][sq] & BB(pos, them, PAWN)
-        || ATTACKS_KING[sq] & BB(pos, them, KING));
-}
-
-// Compute attacked squares into a bitboard
-bb_t attacked_squares(pos_t *pos, int us)
-{
-    int them = us^1;
-    bb_t attacked = 0ull;
-    bb_t pawns   = BB(pos, them, PAWN);
-    bb_t knights = BB(pos, them, KNIGHT);
-    bb_t bishops = BB(pos, them, BISHOP);
-    bb_t rooks   = BB(pos, them, ROOK);
-    bb_t queens  = BB(pos, them, QUEEN);
-    bb_t king    = BB(pos, them, KING);
-    while (pawns)   attacked |= ATTACKS_PAWN[them][poplsb(&pawns)];
-    while (knights) attacked |= ATTACKS_KNIGHT[poplsb(&knights)];
-    while (bishops) attacked |= bishop_attacks_fast(poplsb(&bishops), pos->all);
-    while (rooks)   attacked |= rook_attacks_fast(poplsb(&rooks), pos->all);
-    while (queens)  attacked |= queen_attacks_fast(poplsb(&queens), pos->all);
-    attacked |= ATTACKS_KING[poplsb(&king)];
-    return attacked;
-}
 
 void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, int us)
 {
@@ -75,7 +44,11 @@ void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, int us)
     bb_t bb = BB(pos, us, PAWN);
     while (bb) {
         int sq = poplsb(&bb);
-        // single push
+        //TODO: Pin ray generation?
+        bb_t pin_ray = 0ull;
+        if (sq_bb(sq) & pos->pinned[us])
+        {
+        }
         bb_t push = (us == WHITE) ? (sq_bb(sq) << 8) : (sq_bb(sq) >> 8);
         push &= ~pos->all;
         if (push & ((us == WHITE) ? RANK_8 : RANK_1))
@@ -124,7 +97,7 @@ void _pseudo_legal_knight(pos_t *pos, ml_t *ml, int us)
     while (bb) {
         int sq = poplsb(&bb);
         // skip move generation if knight is pinned (can't move if pinned)
-        // if (pos->pinned[us] & sq_bb(sq)) continue;
+        if (pos->pinned[us] & sq_bb(sq)) continue;
         bb_t captures = ATTACKS_KNIGHT[sq] & pos->occ[them];
         while (captures) {
             ml_add(ml, sq, poplsb(&captures), CAPTURE);
@@ -239,6 +212,37 @@ void gen_pseudo_legal(pos_t *pos, ml_t *ml, int us)
 /* ----------------------------------------------------------------------------
  * # LEGAL GENERATION
  * ------------------------------------------------------------------------- */
+
+// Check if square attacked by given color
+int is_square_attacked(pos_t *pos, int sq, int them)
+{
+    assert((unsigned char)sq < SQ_COUNT);
+    return (ATTACKS_KNIGHT[sq] & BB(pos, them, KNIGHT)
+        || bishop_attacks_fast(sq, pos->all) & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN))
+        || rook_attacks_fast(sq, pos->all) & (BB(pos, them, ROOK) | BB(pos, them, QUEEN))
+        || ATTACKS_PAWN[them][sq] & BB(pos, them, PAWN)
+        || ATTACKS_KING[sq] & BB(pos, them, KING));
+}
+
+// Compute attacked squares into a bitboard
+bb_t attacked_squares(pos_t *pos, int us)
+{
+    int them = us^1;
+    bb_t attacked = 0ull;
+    bb_t pawns   = BB(pos, them, PAWN);
+    bb_t knights = BB(pos, them, KNIGHT);
+    bb_t bishops = BB(pos, them, BISHOP);
+    bb_t rooks   = BB(pos, them, ROOK);
+    bb_t queens  = BB(pos, them, QUEEN);
+    bb_t king    = BB(pos, them, KING);
+    while (pawns)   attacked |= ATTACKS_PAWN[them][poplsb(&pawns)];
+    while (knights) attacked |= ATTACKS_KNIGHT[poplsb(&knights)];
+    while (bishops) attacked |= bishop_attacks_fast(poplsb(&bishops), pos->all);
+    while (rooks)   attacked |= rook_attacks_fast(poplsb(&rooks), pos->all);
+    while (queens)  attacked |= queen_attacks_fast(poplsb(&queens), pos->all);
+    attacked |= ATTACKS_KING[poplsb(&king)];
+    return attacked;
+}
 
 void gen_legal_pawn(pos_t *pos, ml_t *ml, int us)
 {
@@ -633,6 +637,7 @@ void init_engine(void)
     _init_castling_table();
     _init_mask_rf();
     _init_mask_diag();
+    _init_blockers();
 }
 
 void make_random(pos_t *pos)

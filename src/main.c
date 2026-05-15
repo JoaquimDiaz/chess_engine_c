@@ -11,14 +11,18 @@ int main(void)
 {
     // !!!!! DONT FORGET TO INIT THE ENGINE !!!!!!!
     init_engine();
-    pos_t * pos = starting_pos();
-    while (1)
-    {
-        make_random(pos);
-        print_pos(pos);
-        print_pos_info(pos);
+    ITER_SQ(sq) {
+        print_bb(BLOCKERS[a1][sq]);
         getchar();
     }
+    // pos_t * pos = starting_pos();
+    // while (1)
+    // {
+    //     make_random(pos);
+    //     print_pos(pos);
+    //     print_pos_info(pos);
+    //     getchar();
+    // }
     // make_move(pos, e2, e4, DOUBLE_PAWN, pos->side);
     // make_move(pos, d7, d5, DOUBLE_PAWN, pos->side);
     // make_move(pos, e4, e5, NO_FLAG, pos->side);

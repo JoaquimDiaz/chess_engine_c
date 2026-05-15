@@ -117,6 +117,7 @@ extern const bb_t FILES[8];
 extern uint8_t CASTLING_TABLE[SQ_COUNT];
 extern bb_t    MASK_RF[SQ_COUNT];
 extern bb_t    MASK_DIAG[SQ_COUNT];
+extern bb_t    BLOCKERS[64][64];
 
 /* ----------------------------------------------------------------------------
  * # UTILITY FUNCTIONS
@@ -152,6 +153,16 @@ static inline bb_t sq_bb(sq_t s)
 {
     assert((unsigned char)s < SQ_COUNT);
     return (1ull << s);
+}
+
+static inline int same_rank(int sq1, int sq2) {
+    assert((unsigned char)sq1 < 64 && (unsigned char)sq2 < 64);
+    return (sq1 >> 3) == (sq2 >> 3);
+}
+
+static inline int same_file(int sq1, int sq2) {
+    assert((unsigned char)sq1 < 64 && (unsigned char)sq2 < 64);
+    return (sq1 & 7) == (sq2 & 7);
 }
 
 // Piece list manipulation
@@ -194,6 +205,7 @@ void print_pos_info(pos_t *pos);
 void _init_castling_table(void);
 void _init_mask_rf(void);
 void _init_mask_diag(void);
+void _init_blockers(void);
 
 // * FEN PARSING
 pos_t *parse_fen(char *fen);
