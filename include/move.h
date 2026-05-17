@@ -47,20 +47,6 @@ typedef enum {
 
 // * MOVE HELPERS
 
-// Print helper
-#define PRINTML(ml) do {\
-    for (size_t i = 0; i < (ml).count; i++)\
-        print_move(ml.moves[i]);\
-} while (0)
-
-#define PRINTML2(pos, ml) do {\
-    for (size_t i = 0; i < (ml).count; i++){\
-        move_t m = (ml).moves[i];\
-        int p = piece_type((pos)->pl[mfrom(m)]);\
-        printf("%s: ", p_to_str(p));\
-        print_move((ml).moves[i]);}\
-} while (0)
-
 // Move encoding
 static inline move_t mencode(int from, int to, flags_t f) {
     assert((unsigned char)from < SQ_COUNT);
@@ -101,6 +87,50 @@ static inline bb_t get_checker_mask(pos_t *pos, int us) {
 }
 
 #define ITER_ML(ml, it) for (size_t (it) = 0; (it) < (ml).count; (it)++)
+
+// * MOVE PRINTING
+
+static inline char *f_to_str(uint32_t flag)
+{
+    switch (flag) {
+        case NO_FLAG:       return "NO_FLAG";
+        case DOUBLE_PAWN:   return "DOUBLE_PAWN";
+        case CASTLE_KING:   return "CASTLE_KING";
+        case CASTLE_QUEEN:  return "CASTLE_QUEEN";
+        case CAPTURE:       return "CAPTURE";
+        case EN_PASSANT:    return "EN_PASSANT";
+        case PROM_N:        return "PROM_N";
+        case PROM_B:        return "PROM_B";
+        case PROM_R:        return "PROM_R";
+        case PROM_Q:        return "PROM_Q";
+        case PROM_CAP_N:    return "PROM_CAP_N";
+        case PROM_CAP_B:    return "PROM_CAP_B";
+        case PROM_CAP_R:    return "PROM_CAP_R";
+        case PROM_CAP_Q:    return "PROM_CAP_Q";
+        default:            return "NO_FLAG";
+    }
+}
+
+static inline void print_move(move_t m)
+{
+    printf("from: '%s' | ", sq_to_str(mfrom(m)));
+    printf("to: '%s' |", sq_to_str(mto(m)));
+    printf("flag: '%s'\n", f_to_str(mflag(m)));
+}
+
+// Print helper
+#define PRINTML(ml) do {\
+    for (size_t i = 0; i < (ml).count; i++)\
+        print_move(ml.moves[i]);\
+} while (0)
+
+#define PRINTML2(pos, ml) do {\
+    for (size_t i = 0; i < (ml).count; i++){\
+        move_t m = (ml).moves[i];\
+        int p = piece_type((pos)->pl[mfrom(m)]);\
+        printf("%s: ", p_to_str(p));\
+        print_move((ml).moves[i]);}\
+} while (0)
 
 // * FUNCTIONS
 void print_move(move_t m);

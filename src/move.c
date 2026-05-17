@@ -3,72 +3,11 @@
 #include "board.h"
 
 /* ----------------------------------------------------------------------------
- * # HELPERS
- * ------------------------------------------------------------------------- */
-
-static char *_decode_flag(uint32_t flag)
-{
-    switch (flag) {
-        case NO_FLAG:       return "NO_FLAG";
-        case DOUBLE_PAWN:   return "DOUBLE_PAWN";
-        case CASTLE_KING:   return "CASTLE_KING";
-        case CASTLE_QUEEN:  return "CASTLE_QUEEN";
-        case CAPTURE:       return "CAPTURE";
-        case EN_PASSANT:    return "EN_PASSANT";
-        case PROM_N:        return "PROM_N";
-        case PROM_B:        return "PROM_B";
-        case PROM_R:        return "PROM_R";
-        case PROM_Q:        return "PROM_Q";
-        case PROM_CAP_N:    return "PROM_CAP_N";
-        case PROM_CAP_B:    return "PROM_CAP_B";
-        case PROM_CAP_R:    return "PROM_CAP_R";
-        case PROM_CAP_Q:    return "PROM_CAP_Q";
-        default: return "NO_FLAG";
-    }
-}
-
-void print_move(move_t m)
-{
-    printf("from: '%s' | ", sq_to_str(mfrom(m)));
-    printf("to: '%s' |", sq_to_str(mto(m)));
-    printf("flag: '%s'\n", _decode_flag(mflag(m)));
-}
-
-/* ----------------------------------------------------------------------------
  * # LEGAL GENERATION
+ * 
+ * - Move generation if there is no check on the king.
+ * - Include filtering moves for pinned pieces.
  * ------------------------------------------------------------------------- */
-
-// Check if square attacked by given color
-int is_square_attacked(pos_t *pos, int sq, int them)
-{
-    assert((unsigned char)sq < SQ_COUNT);
-    return (ATTACKS_KNIGHT[sq] & BB(pos, them, KNIGHT)
-        || bishop_attacks_fast(sq, pos->all) & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN))
-        || rook_attacks_fast(sq, pos->all) & (BB(pos, them, ROOK) | BB(pos, them, QUEEN))
-        || ATTACKS_PAWN[them][sq] & BB(pos, them, PAWN)
-        || ATTACKS_KING[sq] & BB(pos, them, KING));
-}
-
-// Compute attacked squares into a bitboard
-bb_t attacked_squares(pos_t *pos, int us)
-{
-    int them = us^1;
-    bb_t attacked = 0ull;
-    bb_t pawns   = BB(pos, them, PAWN);
-    bb_t knights = BB(pos, them, KNIGHT);
-    bb_t bishops = BB(pos, them, BISHOP);
-    bb_t rooks   = BB(pos, them, ROOK);
-    bb_t queens  = BB(pos, them, QUEEN);
-    bb_t king    = BB(pos, them, KING);
-    bb_t occ_nok = pos->all & ~sq_bb(pos->ks[us]);
-    while (pawns)   attacked |= ATTACKS_PAWN[them][poplsb(&pawns)];
-    while (knights) attacked |= ATTACKS_KNIGHT[poplsb(&knights)];
-    while (bishops) attacked |= bishop_attacks_fast(poplsb(&bishops), occ_nok);
-    while (rooks)   attacked |= rook_attacks_fast(poplsb(&rooks), occ_nok);
-    while (queens)  attacked |= queen_attacks_fast(poplsb(&queens), occ_nok);
-    attacked |= ATTACKS_KING[poplsb(&king)];
-    return attacked;
-}
 
 void gen_legal_pawn(pos_t *pos, ml_t *ml, int us)
 {
@@ -239,8 +178,25 @@ void gen_legal_king(pos_t *pos, ml_t *ml, int us)
     }
 }
 
+// * ALL
+void gen_all_moves(pos_t *pos, ml_t *ml, int us)
+{
+    gen_legal_pawn(pos, ml, us);
+    gen_legal_knight(pos, ml, us);
+    gen_legal_bishop(pos, ml, us);
+    gen_legal_rook(pos, ml, us);
+    gen_legal_queen(pos, ml, us);
+    gen_legal_king(pos, ml, us);
+}
+
+
 /* ----------------------------------------------------------------------------
  * # KING IN CHECK GENERATION
+ *
+ * - Move generation if king in check once
+ * - legal generation 
+ *      + filtering blocker ray 
+ *      - castling moves
  * ------------------------------------------------------------------------- */
 
 void gen_blockers_pawn(pos_t *pos, ml_t *ml, int us)
@@ -404,6 +360,7 @@ void gen_king_incheck(pos_t *pos, ml_t *ml, int us)
     }
 }
 
+// * ALL
 void gen_all_blockers(pos_t *pos, ml_t *ml, int us)
 {
     gen_blockers_pawn(pos, ml, us);
@@ -416,18 +373,8 @@ void gen_all_blockers(pos_t *pos, ml_t *ml, int us)
 
 
 /* ----------------------------------------------------------------------------
- * # MAKE / UNMAKE / LEGAL
+ * # MAKE & UNMAKE 
  * ------------------------------------------------------------------------- */
-
-void quick_make(pos_t *pos, int from, int to)
-{
-    int flag = NO_FLAG;
-    if (pos->pl[to] != NO_PIECE) flag = CAPTURE;
-    if (to == pos->ep)           flag = EN_PASSANT;
-    if (piece_type(pos->pl[from]) == PAWN && (unsigned char)(to - from) > 10)
-        flag = DOUBLE_PAWN;
-    make_move(pos, from, to, flag, pos->side);
-}
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c)
 {
@@ -575,6 +522,60 @@ void unmake_move(pos_t *pos, int from, int to, int flag)
     flip_side(pos);
 }
 
+// for testing, avoid side & flag
+void quick_make(pos_t *pos, int from, int to)
+{
+    int flag = NO_FLAG;
+    if (pos->pl[to] != NO_PIECE) flag = CAPTURE;
+    if (to == pos->ep)           flag = EN_PASSANT;
+    if (piece_type(pos->pl[from]) == PAWN && (unsigned char)(to - from) > 10)
+        flag = DOUBLE_PAWN;
+    //TODO: en passant
+    //TODO: promo
+    make_move(pos, from, to, flag, pos->side);
+}
+
+/* ----------------------------------------------------------------------------
+ * # SAFETY & PINS FUNCTIONS
+ * ------------------------------------------------------------------------- */
+
+// Check if square attacked by given color
+// USELESS
+int is_square_attacked(pos_t *pos, int sq, int them)
+{
+    assert((unsigned char)sq < SQ_COUNT);
+    return (ATTACKS_KNIGHT[sq] & BB(pos, them, KNIGHT)
+        || bishop_attacks_fast(sq, pos->all) & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN))
+        || rook_attacks_fast(sq, pos->all) & (BB(pos, them, ROOK) | BB(pos, them, QUEEN))
+        || ATTACKS_PAWN[them][sq] & BB(pos, them, PAWN)
+        || ATTACKS_KING[sq] & BB(pos, them, KING));
+}
+
+// Compute attacked squares into a bitboard
+// TODO: change to compute_attacked + change pos
+bb_t attacked_squares(pos_t *pos, int us)
+{
+    int them = us^1;
+    bb_t attacked = 0ull;
+    bb_t pawns   = BB(pos, them, PAWN);
+    bb_t knights = BB(pos, them, KNIGHT);
+    bb_t bishops = BB(pos, them, BISHOP);
+    bb_t rooks   = BB(pos, them, ROOK);
+    bb_t queens  = BB(pos, them, QUEEN);
+    bb_t king    = BB(pos, them, KING);
+    bb_t occ_nok = pos->all & ~sq_bb(pos->ks[us]);
+    while (pawns)   attacked |= ATTACKS_PAWN[them][poplsb(&pawns)];
+    while (knights) attacked |= ATTACKS_KNIGHT[poplsb(&knights)];
+    while (bishops) attacked |= bishop_attacks_fast(poplsb(&bishops), occ_nok);
+    while (rooks)   attacked |= rook_attacks_fast(poplsb(&rooks), occ_nok);
+    while (queens)  attacked |= queen_attacks_fast(poplsb(&queens), occ_nok);
+    attacked |= ATTACKS_KING[poplsb(&king)];
+    return attacked;
+}
+
+
+// compute a pinners(them) & pinned(us) bb
+// TODO: change pos in place
 bb_t compute_pin(pos_t *pos, int us)
 {
     int them = us^1;
@@ -617,6 +618,8 @@ bb_t compute_pin(pos_t *pos, int us)
     return pinned;
 }
 
+// compute checkers(them) bb
+// TODO: change pos in place
 bb_t compute_checkers(pos_t *pos, int us)
 {
     int them = us^1;
@@ -629,6 +632,8 @@ bb_t compute_checkers(pos_t *pos, int us)
         );
 }
 
+// determine if king(us) is safe in position.
+// USELESS? was used before in make/safe?/unmake
 int is_king_safe(pos_t *pos, int us)
 {
     int them = us^1;
@@ -641,16 +646,8 @@ int is_king_safe(pos_t *pos, int us)
         | (bishop_attacks_fast(sq, pos->all) & (BB(pos, them, BISHOP) | BB(pos, them, QUEEN))));
 }
 
-void gen_all_moves(pos_t *pos, ml_t *ml, int us)
-{
-    gen_legal_pawn(pos, ml, us);
-    gen_legal_knight(pos, ml, us);
-    gen_legal_bishop(pos, ml, us);
-    gen_legal_rook(pos, ml, us);
-    gen_legal_queen(pos, ml, us);
-    gen_legal_king(pos, ml, us);
-}
-
+// generate legal moves in current position for given color(us)
+// compute attacked/pinned/pinners/checkers before
 void gen_legal(pos_t *pos, ml_t *ml, int us)
 {
     pos->attacked[us] = attacked_squares(pos, us);
@@ -662,6 +659,7 @@ void gen_legal(pos_t *pos, ml_t *ml, int us)
         case 0: gen_all_moves(pos, ml, us); break;
         case 1: gen_all_blockers(pos, ml, us); break;
         case 2: gen_king_incheck(pos, ml, us); break;
+        // TODO: add handling for impossible case? or just gen_king_incheck?
         default: break;
     }
 }
@@ -716,6 +714,7 @@ void perft_root(pos_t *pos, int max_depth)
  * # INITIALISATION & RANDOM MOVE
  * ------------------------------------------------------------------------- */
 
+// initialize all attacks & masks tables
 void init_engine(void)
 {
     srand(time(NULL));
@@ -726,6 +725,7 @@ void init_engine(void)
     _init_mask_blockers_pin();
 }
 
+// make a random legal move for current side in position
 void make_random(pos_t *pos)
 {
     ml_t ml = {0};
