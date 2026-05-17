@@ -20,11 +20,18 @@ int main(void)
     // !!!!!!!!
     // pos_t *pos = parse_fen(EP_CHECK);
     pos_t *pos = starting_pos();
-    for (int i = 0; i < 6; i++) make_random(pos);
+    quick_make(pos, d2, d4);
+    quick_make(pos, e7, e5);
+    quick_make(pos, e1, d2);
+    quick_make(pos, e5, e4);
     print_pos(pos);
-    ml_t ml = {0};
-    gen_legal(pos, &ml, pos->side);
-    PRINTML2(pos, ml);
+    print_pos_info(pos);
+    divide(pos, 1);
+    // for (int i = 0; i < 6; i++) make_random(pos);
+    // print_pos(pos);
+    // ml_t ml = {0};
+    // gen_legal(pos, &ml, pos->side);
+    // PRINTML2(pos, ml);
     // pos->checkers[pos->side] = compute_checkers(pos, pos->side);
     // pos->pinned[pos->side] = compute_pin(pos, pos->side);
     // pos->attacked[pos->side] = attacked_squares(pos, pos->side); 

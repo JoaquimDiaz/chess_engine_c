@@ -133,8 +133,7 @@ static inline void print_move(move_t m)
 } while (0)
 
 // * FUNCTIONS
-void print_move(move_t m);
-int is_square_attacked(pos_t *pos, int sq, int them);
+int is_square_attacked(pos_t *pos, int sq, int them, bb_t occ_nok);
 
 
 // * Legal move gen
@@ -148,11 +147,11 @@ void gen_legal_king(pos_t *pos, ml_t *ml, int us);
 void gen_all_moves(pos_t *pos, ml_t *ml, int us);
 
 // * Blockers move gen
-void gen_blockers_pawn(pos_t *pos, ml_t *ml, int us);
-void gen_blockers_knight(pos_t *pos, ml_t *ml, int us);
-void gen_blockers_bishop(pos_t *pos, ml_t *ml, int us);
-void gen_blockers_rook(pos_t *pos, ml_t *ml, int us);
-void gen_blockers_queen(pos_t *pos, ml_t *ml, int us);
+void gen_blockers_pawn(pos_t *pos, ml_t *ml, bb_t checker_ray, int us);
+void gen_blockers_knight(pos_t *pos, ml_t *ml, bb_t checker_ray, int us);
+void gen_blockers_bishop(pos_t *pos, ml_t *ml, bb_t checker_ray, int us);
+void gen_blockers_rook(pos_t *pos, ml_t *ml, bb_t checker_ray, int us);
+void gen_blockers_queen(pos_t *pos, ml_t *ml, bb_t checker_ray, int us);
 void gen_king_incheck(pos_t *pos, ml_t *ml, int us);
 // ALL
 void gen_all_blockers(pos_t *pos, ml_t *ml, int us);
@@ -166,8 +165,11 @@ void unmake_move(pos_t *pos, int from, int to, int flag);
 void quick_make(pos_t *pos, int from, int to);
 void gen_legal(pos_t *pos, ml_t *ml, int us);
 
-//
+// * PERFT
 uint64_t perft(pos_t *pos, int depth, int ply);
-void perft_root(pos_t *pos, int max_depth);
+void     perft_root(pos_t *pos, int max_depth);
+void     divide(pos_t *pos, int depth);
+
+// * INIT & RANDOM
 void init_engine(void);
 void make_random(pos_t *pos);

@@ -222,7 +222,8 @@ void print_pos(pos_t *pos)
 
 void print_pos_info(pos_t *pos)
 {
-    printf("KS BLACK: '%i', WHITE: '%i'\n", pos->ks[BLACK], pos->ks[WHITE]);
+    printf("KS BLACK: '%s'", sq_to_str(pos->ks[BLACK]));
+    printf(", WHITE: '%s'\n", sq_to_str(pos->ks[WHITE]));
     printf("Side to play: '%s'\n", (pos->side) ? "BLACK" : "WHITE");
     printf("W_00: '%i' | W_000: '%i' | B_00: '%i' | B_000: '%i'\n", 
             (pos->castling & W_00)  ? 1 : 0,
