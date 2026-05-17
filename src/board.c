@@ -53,7 +53,7 @@ void _init_castling_table(void)
     CASTLING_TABLE[e8] ^= (B_00 | B_000);
 }
 
-static bb_t travel_ray(int start_sq, int rdir, int fdir, int dest_sq)
+static bb_t travel_ray_sq(int start_sq, int rdir, int fdir, int dest_sq)
 {
     int r = (start_sq >> 3) + rdir;
     int f = (start_sq & 7) + fdir;
@@ -67,9 +67,26 @@ static bb_t travel_ray(int start_sq, int rdir, int fdir, int dest_sq)
     return 0ull;
 }
 
-bb_t BLOCKERS[64][64];
+static bb_t travel_ray_line(int start_sq, int rdir, int fdir, int pinned_sq)
+{
+    int r = (start_sq >> 3) + rdir;
+    int f = (start_sq & 7) + fdir;
+    bb_t bb = 0ull;
+    int found = 0;
+    while (VALID_RF(r, f)) {
+        bb |= sq_bb(r * 8 + f);
+        if ((r * 8 + f) == pinned_sq) found++;
+        r += rdir;
+        f += fdir;
+    }
+    if (found) return bb;
+    else       return 0ull;
+}
 
-void _init_blockers(void)
+bb_t BLOCKERS[64][64];
+bb_t MASK_PIN[64][64];
+
+void _init_mask_blockers_pin(void)
 {
     const int rdir[] = { 1, 1, 0, -1, -1, -1,  0,  1 };
     const int fdir[] = { 0, 1, 1,  1,  0, -1, -1, -1 };
@@ -77,11 +94,13 @@ void _init_blockers(void)
         ITER_SQ(sq2) {
             // BLOCKERS[sq1][sq1] = 0ull;
             for (int i = 0; i < 8; i++) 
-                BLOCKERS[sq1][sq2] |= travel_ray(sq1, rdir[i], fdir[i], sq2);
+            {
+                BLOCKERS[sq1][sq2] |= travel_ray_sq(sq1, rdir[i], fdir[i], sq2);
+                MASK_PIN[sq1][sq2] |= travel_ray_line(sq1, rdir[i], fdir[i], sq2);
+            }
         }
     }
 }
-
 
 /* ----------------------------------------------------------------------------
  * # STARTING POSITION

@@ -32,6 +32,8 @@ typedef enum {
     PROM_CAP_Q   = 13,
 } flags_t;
 
+#define FULL_BB 0xFFFFFFFFFFFFFFFF
+
 // Castling masks
 #define MASK_W00  0x60
 #define MASK_W000 0x0E
@@ -49,6 +51,14 @@ typedef enum {
 #define PRINTML(ml) do {\
     for (size_t i = 0; i < (ml).count; i++)\
         print_move(ml.moves[i]);\
+} while (0)
+
+#define PRINTML2(pos, ml) do {\
+    for (size_t i = 0; i < (ml).count; i++){\
+        move_t m = (ml).moves[i];\
+        int p = piece_type((pos)->pl[mfrom(m)]);\
+        printf("%s: ", p_to_str(p));\
+        print_move((ml).moves[i]);}\
 } while (0)
 
 // Move encoding
@@ -75,8 +85,19 @@ static inline void ml_add(ml_t *ml, int from, int to, flags_t f) {
     ml->moves[ml->count++] = mencode(from, to, f);
 }
 
+//USELESS
 static inline bb_t compute_pin_ray(pos_t *pos, int sq, int us) {
     return (pos->pinned[us] & sq_bb(sq)) ? (MASK_RF[pos->ks[us]] | MASK_DIAG[pos->ks[us]]) : 0ull;
+}
+
+static inline int pinner_sq(pos_t *pos, int pinned_sq, int us) {
+    return __builtin_ctzll(MASK_PIN[pos->ks[us]][pinned_sq] & pos->pinners[us]);
+}
+
+static inline bb_t get_checker_mask(pos_t *pos, int us) {
+    assert(popcount(pos->checkers[us]) == 1);
+    int checker_sq = __builtin_ctzll(pos->checkers[us]);
+    return BLOCKERS[pos->ks[us]][checker_sq] | sq_bb(checker_sq);
 }
 
 #define ITER_ML(ml, it) for (size_t (it) = 0; (it) < (ml).count; (it)++)
@@ -93,13 +114,34 @@ void _pseudo_legal_bishop(pos_t *pos, ml_t *ml, int us);
 void _pseudo_legal_queen(pos_t *pos, ml_t *ml, int us);
 void gen_pseudo_legal(pos_t *pos, ml_t *ml, int us);
 
+bb_t attacked_squares(pos_t *pos, int us);
+
+// Legal move gen
+void gen_legal_pawn(pos_t *pos, ml_t *ml, int us);
+void gen_legal_knight(pos_t *pos, ml_t *ml, int us);
+void gen_legal_bishop(pos_t *pos, ml_t *ml, int us);
+void gen_legal_rook(pos_t *pos, ml_t *ml, int us);
+void gen_legal_queen(pos_t *pos, ml_t *ml, int us);
+void gen_legal_king(pos_t *pos, ml_t *ml, int us);
+
+// Blockers move gen
+void gen_blockers_pawn(pos_t *pos, ml_t *ml, int us);
+void gen_blockers_knight(pos_t *pos, ml_t *ml, int us);
+void gen_blockers_bishop(pos_t *pos, ml_t *ml, int us);
+void gen_blockers_rook(pos_t *pos, ml_t *ml, int us);
+void gen_blockers_queen(pos_t *pos, ml_t *ml, int us);
+void gen_king_incheck(pos_t *pos, ml_t *ml, int us);
+void gen_all_blockers(pos_t *pos, ml_t *ml, int us);
+void gen_all_moves(pos_t *pos, ml_t *ml, int us);
+
 bb_t compute_pin(pos_t *pos, int us);
 bb_t compute_checkers(pos_t *pos, int us);
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c);
 void unmake_move(pos_t *pos, int from, int to, int flag);
 void quick_make(pos_t *pos, int from, int to);
-void gen_legal(pos_t *pos, int us, ml_t *ml_pseudo, ml_t *ml_legal);
+void gen_legal(pos_t *pos, ml_t *ml, int us);
+// void gen_legal(pos_t *pos, int us, ml_t *ml_pseudo, ml_t *ml_legal);
 
 //
 uint64_t perft(pos_t *pos, int depth, int ply);

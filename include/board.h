@@ -118,6 +118,7 @@ extern uint8_t CASTLING_TABLE[SQ_COUNT];
 extern bb_t    MASK_RF[SQ_COUNT];
 extern bb_t    MASK_DIAG[SQ_COUNT];
 extern bb_t    BLOCKERS[64][64];
+extern bb_t    MASK_PIN[64][64];
 
 /* ----------------------------------------------------------------------------
  * # UTILITY FUNCTIONS
@@ -189,6 +190,18 @@ static inline const char *sq_to_str(int sq)
     return buf;
 }
 
+static inline const char *p_to_str(int piece)
+{
+    switch (piece) {
+        case PAWN:   return "PAWN"; 
+        case KNIGHT: return "KNIGHT"; 
+        case BISHOP: return "BISHOP"; 
+        case ROOK:   return "ROOK"; 
+        case QUEEN:  return "QUEEN"; 
+        case KING:   return "KING"; 
+        default:     return "NO PIECE"; 
+    }
+}
 
 /* ----------------------------------------------------------------------------
  * # FUNCTIONS
@@ -205,7 +218,7 @@ void print_pos_info(pos_t *pos);
 void _init_castling_table(void);
 void _init_mask_rf(void);
 void _init_mask_diag(void);
-void _init_blockers(void);
+void _init_mask_blockers_pin(void);
 
 // * FEN PARSING
 pos_t *parse_fen(char *fen);
