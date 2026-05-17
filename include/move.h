@@ -105,35 +105,29 @@ static inline bb_t get_checker_mask(pos_t *pos, int us) {
 // * FUNCTIONS
 void print_move(move_t m);
 int is_square_attacked(pos_t *pos, int sq, int them);
-void _pseudo_legal_pawn(pos_t *pos, ml_t *ml, int us);
-void _pseudo_legal_knight(pos_t *pos, ml_t *ml, int us);
-void _pseudo_legal_king(pos_t *pos, ml_t *ml, int us);
-// void _pseudo_legal_king(pos_t *pos, ml_t *ml, color_t c);
-void _pseudo_legal_rook(pos_t *pos, ml_t *ml, int us);
-void _pseudo_legal_bishop(pos_t *pos, ml_t *ml, int us);
-void _pseudo_legal_queen(pos_t *pos, ml_t *ml, int us);
-void gen_pseudo_legal(pos_t *pos, ml_t *ml, int us);
 
-bb_t attacked_squares(pos_t *pos, int us);
 
-// Legal move gen
+// * Legal move gen
 void gen_legal_pawn(pos_t *pos, ml_t *ml, int us);
 void gen_legal_knight(pos_t *pos, ml_t *ml, int us);
 void gen_legal_bishop(pos_t *pos, ml_t *ml, int us);
 void gen_legal_rook(pos_t *pos, ml_t *ml, int us);
 void gen_legal_queen(pos_t *pos, ml_t *ml, int us);
 void gen_legal_king(pos_t *pos, ml_t *ml, int us);
+// ALL
+void gen_all_moves(pos_t *pos, ml_t *ml, int us);
 
-// Blockers move gen
+// * Blockers move gen
 void gen_blockers_pawn(pos_t *pos, ml_t *ml, int us);
 void gen_blockers_knight(pos_t *pos, ml_t *ml, int us);
 void gen_blockers_bishop(pos_t *pos, ml_t *ml, int us);
 void gen_blockers_rook(pos_t *pos, ml_t *ml, int us);
 void gen_blockers_queen(pos_t *pos, ml_t *ml, int us);
 void gen_king_incheck(pos_t *pos, ml_t *ml, int us);
+// ALL
 void gen_all_blockers(pos_t *pos, ml_t *ml, int us);
-void gen_all_moves(pos_t *pos, ml_t *ml, int us);
 
+bb_t attacked_squares(pos_t *pos, int us);
 bb_t compute_pin(pos_t *pos, int us);
 bb_t compute_checkers(pos_t *pos, int us);
 
@@ -141,7 +135,6 @@ void make_move(pos_t *pos, int from, int to, int flag, color_t c);
 void unmake_move(pos_t *pos, int from, int to, int flag);
 void quick_make(pos_t *pos, int from, int to);
 void gen_legal(pos_t *pos, ml_t *ml, int us);
-// void gen_legal(pos_t *pos, int us, ml_t *ml_pseudo, ml_t *ml_legal);
 
 //
 uint64_t perft(pos_t *pos, int depth, int ply);

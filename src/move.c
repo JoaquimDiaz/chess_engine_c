@@ -580,6 +580,8 @@ bb_t compute_pin(pos_t *pos, int us)
     int them = us^1;
     int k_sq = pos->ks[us];
     bb_t pinned = 0ull;
+    // TODO: improve reset pinners
+    pos->pinners[us] = 0ull;
     // ROOK PINNERS
     bb_t rook_rf_bb = MASK_RF[k_sq];
     bb_t potential_pin = rook_attacks_fast(k_sq, pos->all) & pos->occ[us];
