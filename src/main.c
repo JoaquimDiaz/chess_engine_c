@@ -11,8 +11,6 @@ char *DB_BLOCK = "7k/2ppp3/1B6/8/8/2Q5/2PPP3/3K4 b - - 0 1";
 char *DB_CHECK = "8/2ppp1k1/1B6/8/8/2Q2RR1/2PPP3/3K4 b - - 0 1";
 char *EP_CHECK = "3k4/2p1p3/8/3pP3/4K3/8/2PP4/8 w - d6 0 2";
 
-//TODO: hm increment
-
 int main(void)
 {
     // !!!!! DONT FORGET TO INIT THE ENGINE !!!!!!!

@@ -71,11 +71,6 @@ static inline void ml_add(ml_t *ml, int from, int to, flags_t f) {
     ml->moves[ml->count++] = mencode(from, to, f);
 }
 
-//USELESS
-static inline bb_t compute_pin_ray(pos_t *pos, int sq, int us) {
-    return (pos->pinned[us] & sq_bb(sq)) ? (MASK_RF[pos->ks[us]] | MASK_DIAG[pos->ks[us]]) : 0ull;
-}
-
 static inline int pinner_sq(pos_t *pos, int pinned_sq, int us) {
     return __builtin_ctzll(MASK_PIN[pos->ks[us]][pinned_sq] & pos->pinners[us]);
 }
@@ -133,8 +128,6 @@ static inline void print_move(move_t m)
 } while (0)
 
 // * FUNCTIONS
-int is_square_attacked(pos_t *pos, int sq, int them, bb_t occ_nok);
-
 
 // * Legal move gen
 void gen_legal_pawn(pos_t *pos, ml_t *ml, int us);
@@ -156,9 +149,11 @@ void gen_king_incheck(pos_t *pos, ml_t *ml, int us);
 // ALL
 void gen_all_blockers(pos_t *pos, ml_t *ml, int us);
 
-bb_t attacked_squares(pos_t *pos, int us);
-bb_t compute_pin(pos_t *pos, int us);
-bb_t compute_checkers(pos_t *pos, int us);
+// * Legality
+
+void compute_pin(pos_t *pos, int us);
+void compute_checkers(pos_t *pos, int us);
+int  is_square_attacked(pos_t *pos, int sq, int them, bb_t occ_nok);
 
 void make_move(pos_t *pos, int from, int to, int flag, color_t c);
 void unmake_move(pos_t *pos, int from, int to, int flag);

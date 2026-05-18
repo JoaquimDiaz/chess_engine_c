@@ -168,10 +168,15 @@ pos_t *starting_pos(void)
     pos->ks[WHITE] = WK_START_SQ;
     pos->ks[BLACK] = BK_START_SQ;
     // CASTLING RIGHTS / EN PASSANT / MOVE COUNT
+    ITER_COLOR(c){
+        pos->checkers[c] = 0ull;
+        pos->pinners[c]  = 0ull;
+        pos->pinned[c]   = 0ull;
+    }
     pos->castling = ALL_CASTLING;
-    pos->ep = NO_ENPASSANT;
-    pos->hm = 0;
-    pos->fm = 0;
+    pos->ep  = NO_ENPASSANT;
+    pos->hm  = 0;
+    pos->fm  = 1;
     pos->ply = 0;
     return pos;
 }

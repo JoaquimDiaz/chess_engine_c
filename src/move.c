@@ -19,9 +19,9 @@ void gen_legal_pawn(pos_t *pos, ml_t *ml, int us)
         bb_t pin_ray = (pos->pinned[us] & sq_bb(sq)) ? 
             BLOCKERS[pos->ks[us]][pinner_sq(pos, sq, us)]
             : FULL_BB;
-        bb_t push = ((us == WHITE) ? (sq_bb(sq) << 8) : (sq_bb(sq) >> 8)) & ~pos->all;
+        bb_t push    = ((us == WHITE) ? (sq_bb(sq) << 8) : (sq_bb(sq) >> 8)) & ~pos->all;
         bb_t db_push = ((us == WHITE) ? ((push << 8) & RANK_4) : ((push >> 8) & RANK_5)) & ~pos->all;
-        push &= pin_ray;
+        push    &= pin_ray;
         db_push &= pin_ray;
         if (push & ((us == WHITE) ? RANK_8 : RANK_1))
         {
@@ -33,8 +33,7 @@ void gen_legal_pawn(pos_t *pos, ml_t *ml, int us)
         }
         // double push
         if (db_push) ml_add(ml, sq, poplsb(&db_push), DOUBLE_PAWN);
-        if (push) ml_add(ml, sq, poplsb(&push), NO_FLAG);
-        //TODO: improve?
+        if (push)    ml_add(ml, sq, poplsb(&push), NO_FLAG);
         // captures
         bb_t captures = ATTACKS_PAWN[us][sq] & pos->occ[them] & pin_ray;
         if (captures & ((us == WHITE) ? RANK_8 : RANK_1)) 
@@ -50,8 +49,6 @@ void gen_legal_pawn(pos_t *pos, ml_t *ml, int us)
             while (captures) ml_add(ml, sq, poplsb(&captures), CAPTURE);
         if (pos->ep != NO_ENPASSANT && (sq_bb(pos->ep) & ATTACKS_PAWN[us][sq] & pin_ray))
         {
-            //TODO: TEST
-            //TODO: pin_ray
             if (!(sq_bb(sq) & RANKS[pos->ks[us] >> 3])
                     || !(rook_attacks_fast(pos->ks[us], pos->all & ~(sq_bb(sq) 
                                 | sq_bb(pos->ep + ((us == WHITE) ? (-8) : (8))))
@@ -462,9 +459,12 @@ void make_move(pos_t *pos, int from, int to, int flag, color_t c)
     pos->pl[from] = NO_PIECE;
     pos->all = pos->occ[c] | pos->occ[c^1];
     //pos info
-    //TODO: half move
     pos->castling &= (CASTLING_TABLE[from] & CASTLING_TABLE[to]);
     if (pos->side == BLACK) pos->fm++;
+    if (is_capture(flag) || piece_type(pos->pl[to]) == PAWN)
+        pos->hm = 0;
+    else
+        pos->hm++;
     flip_side(pos);
 }
 
@@ -541,10 +541,10 @@ void quick_make(pos_t *pos, int from, int to)
 {
     int flag = NO_FLAG;
     if (pos->pl[to] != NO_PIECE) flag = CAPTURE;
-    if (to == pos->ep)           flag = EN_PASSANT;
     if (piece_type(pos->pl[from]) == PAWN && abs(from - to) == 16)
         flag = DOUBLE_PAWN;
-    //TODO: en passant
+    if (piece_type(pos->pl[from]) == PAWN && to == pos->ep)
+        flag = EN_PASSANT;
     //TODO: promo
     make_move(pos, from, to, flag, pos->side);
 }
@@ -564,38 +564,14 @@ int is_square_attacked(pos_t *pos, int sq, int them, bb_t occ_nok)
         || (ATTACKS_KING[sq]                 & BB(pos, them, KING));
 }
 
-// Compute attacked squares into a bitboard
-// TODO: change to compute_attacked + change pos
-bb_t attacked_squares(pos_t *pos, int us)
-{
-    int them = us^1;
-    bb_t attacked = 0ull;
-    bb_t pawns   = BB(pos, them, PAWN);
-    bb_t knights = BB(pos, them, KNIGHT);
-    bb_t bishops = BB(pos, them, BISHOP);
-    bb_t rooks   = BB(pos, them, ROOK);
-    bb_t queens  = BB(pos, them, QUEEN);
-    bb_t king    = BB(pos, them, KING);
-    bb_t occ_nok = pos->all & ~sq_bb(pos->ks[us]);
-    while (pawns)   attacked |= ATTACKS_PAWN[them][poplsb(&pawns)];
-    while (knights) attacked |= ATTACKS_KNIGHT[poplsb(&knights)];
-    while (bishops) attacked |= bishop_attacks_fast(poplsb(&bishops), occ_nok);
-    while (rooks)   attacked |= rook_attacks_fast(poplsb(&rooks), occ_nok);
-    while (queens)  attacked |= queen_attacks_fast(poplsb(&queens), occ_nok);
-    attacked |= ATTACKS_KING[poplsb(&king)];
-    return attacked;
-}
-
-
 // compute a pinners(them) & pinned(us) bb
-// TODO: change pos in place
-bb_t compute_pin(pos_t *pos, int us)
+void compute_pin(pos_t *pos, int us)
 {
     int them = us^1;
     int k_sq = pos->ks[us];
-    bb_t pinned = 0ull;
-    // TODO: improve reset pinners
+    // bb_t pinned = 0ull;
     pos->pinners[us] = 0ull;
+    pos->pinned[us]  = 0ull;
     // ROOK PINNERS
     bb_t rook_rf_bb = MASK_RF[k_sq];
     bb_t potential_pin = rook_attacks_fast(k_sq, pos->all) & pos->occ[us];
@@ -607,10 +583,8 @@ bb_t compute_pin(pos_t *pos, int us)
             & (BB(pos, them, ROOK) | BB(pos, them, QUEEN));
         if (pinners_bb)
         {
-            //TODO: Weird assign and return
-            // just assign no return
             pos->pinners[us] |= pinners_bb;
-            pinned |= sq_bb(sq);
+            pos->pinned[us]  |= sq_bb(sq);
         }
     }
     // BISHOP PINNERS
@@ -625,19 +599,19 @@ bb_t compute_pin(pos_t *pos, int us)
         if (pinners_bb)
         {
             pos->pinners[us] |= pinners_bb;
-            pinned |= sq_bb(sq);
+            pos->pinned[us]  |= sq_bb(sq);
+            // pinned |= sq_bb(sq);
         }
     }
-    return pinned;
+    // return pinned;
 }
 
 // compute checkers(them) bb
-// TODO: change pos in place
-bb_t compute_checkers(pos_t *pos, int us)
+void compute_checkers(pos_t *pos, int us)
 {
     int them = us^1;
     int k_sq = pos->ks[us];
-    return (
+    pos->checkers[us] = (
           (ATTACKS_KNIGHT[k_sq]   & BB(pos, them, KNIGHT))
         | (ATTACKS_PAWN[us][k_sq] & BB(pos, them, PAWN))
         | (rook_attacks_fast(k_sq, pos->all)   & (BB(pos, them, ROOK)   | BB(pos, them, QUEEN)))
@@ -663,17 +637,14 @@ int is_king_safe(pos_t *pos, int us)
 // compute attacked/pinned/pinners/checkers before
 void gen_legal(pos_t *pos, ml_t *ml, int us)
 {
-    // pos->attacked[us] = attacked_squares(pos, us);
-    pos->checkers[us] = compute_checkers(pos, us);
-    pos->pinned[us]   = compute_pin(pos, us);
+    compute_checkers(pos, us);
+    compute_pin(pos, us);
     int checkers_count = popcount(pos->checkers[us]);
     assert(checkers_count < 3);
     switch (checkers_count) {
-        case 0: gen_all_moves(pos, ml, us); break;
-        case 1: gen_all_blockers(pos, ml, us); break;
-        case 2: gen_king_incheck(pos, ml, us); break;
-        // TODO: add handling for impossible case? or just gen_king_incheck?
-        default: break;
+        case 0:  gen_all_moves(pos, ml, us);    break;
+        case 1:  gen_all_blockers(pos, ml, us); break;
+        default: gen_king_incheck(pos, ml, us); break;
     }
 }
 

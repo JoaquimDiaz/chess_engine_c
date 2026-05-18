@@ -17,4 +17,3 @@ Test(Magics, rookAttack)
     cr_assert(rook_attacks_fast(a1, sq_bb(a2)) & ~sq_bb(a3));
 }
 
-// TODO: more tests
